@@ -9,9 +9,19 @@ on:
         description: "List of comma-separated image tags to push to registry (eg: `latest,v1`)"
 
 jobs:
-  build_and_push:
+  build_and_push_each_arch:
     name: Build docker image and push it to Docker Hub
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux/amd64
+            tag_suffix: amd64
+          - os: ubuntu-24.04-arm
+            platform: linux/arm64
+            tag_suffix: arm64
+    runs-on: ${{ matrix.os }}
     permissions:
       id-token: write
       contents: read
@@ -35,7 +45,7 @@ jobs:
 
       - name: Create image names
         id: image-names
-        run: echo -e "IMAGE_TAGS<<EOF\n$(echo '${{ env.IMAGE_TAGS }}' | sed 's/,/\n/' | sed 's|^|${{ secrets.DOCKERHUB_USERNAME }}/promtail_cleaner:|')\nEOF" >> $GITHUB_OUTPUT
+        run: echo -e "IMAGE_TAGS<<EOF\n$(echo '${{ env.IMAGE_TAGS }}' | sed 's/,/\n/' | sed 's|^|${{ secrets.DOCKERHUB_USERNAME }}/promtail_cleaner:|' | sed 's/$/-${{ matrix.tag_suffix }}/')\nEOF" >> $GITHUB_OUTPUT
 
       - name: Build and push image
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
@@ -43,7 +53,7 @@ jobs:
           context: .
           file: ./Dockerfile
           target: prod
-          platforms: linux/arm64,linux/amd64
+          platforms: ${{ matrix.platform }}
           cache-from: type=gha
           cache-to: type=gha,mode=max # multi-stage build's all layer cached
           push: true
