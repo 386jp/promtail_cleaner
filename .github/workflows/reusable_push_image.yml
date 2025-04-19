@@ -1,0 +1,51 @@
+name: "♻️ Push image to Docker Hub"
+
+on:
+  workflow_call:
+    inputs:
+      image_tags:
+        type: string
+        required: true
+        description: "List of comma-separated image tags to push to registry (eg: `latest,v1`)"
+
+jobs:
+  build_and_push:
+    name: Build docker image and push it to Docker Hub
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      IMAGE_TAGS: ${{ inputs.image_tags }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+            username: ${{ secrets.DOCKERHUB_USERNAME }}
+            password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db # v3
+
+      - name: Create image names
+        id: image-names
+        run: echo -e "IMAGE_TAGS<<EOF\n$(echo '${{ env.IMAGE_TAGS }}' | sed 's/,/\n/' | sed 's|^|${{ secrets.DOCKERHUB_USERNAME }}/promtail_cleaner:|')\nEOF" >> $GITHUB_OUTPUT
+
+      - name: Build and push image
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        with:
+          context: .
+          file: ./Dockerfile
+          target: prod
+          platforms: linux/arm64,linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max # multi-stage build's all layer cached
+          push: true
+          tags: ${{ steps.image-names.outputs.IMAGE_TAGS }}
+          provenance: false # FYI: https://github.com/docker/build-push-action/releases/tag/v4.0.0
