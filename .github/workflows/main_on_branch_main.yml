@@ -1,0 +1,30 @@
+name: "🎯 Main Branch Main Workflow"
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  get_software_version:
+    name: 📦 Get software version
+    uses: ./.github/workflows/reusable_get_software_version.yml
+    permissions:
+      contents: write
+      pull-requests: read
+    secrets: inherit
+    with:
+      update_mode: none
+      is_dev: false
+
+  image_push:
+    name: 🐳 Push docker image
+    uses: ./.github/workflows/reusable_push_image.yml
+    permissions:
+      id-token: write
+      contents: read
+    secrets: inherit
+    needs:
+      - get_software_version
+    with:
+      image_tags: ${{ needs.get_software_version.outputs.VERSION }}

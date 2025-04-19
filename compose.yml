@@ -1,0 +1,6 @@
+services:
+  cleaner:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+      target: prod

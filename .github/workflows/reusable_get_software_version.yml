@@ -1,0 +1,62 @@
+name: "♻️ Get software version"
+
+on:
+  workflow_call:
+    inputs:
+      update_mode:
+        type: string
+        required: true
+        description: Update mode (major, minor, patch, none)
+      report_on_pr_enabled:
+        type: boolean
+        required: false
+        description: Report version info to PR
+        default: true
+      report_on_releases_enabled:
+        type: boolean
+        required: false
+        description: Report version info to releases
+        default: true
+      is_dev:
+        type: boolean
+        required: false
+        description: True if the build is for development
+        default: false
+    outputs:
+      VERSION:
+        description: Version string
+        value: ${{ jobs.get_software_version.outputs.VERSION }}
+
+concurrency: get-software-version
+
+jobs:
+  get_software_version:
+    name: Get software version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    env:
+      IS_DEV: ${{ inputs.is_dev }}
+    outputs:
+      VERSION: ${{ steps.version-info.outputs.resolved_version }}
+    steps:
+      - uses: release-drafter/release-drafter@b1476f6e6eb133afa41ed8589daba6dc69b4d3f5 # v6
+        id: version-info
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          publish: true
+          commitish: '${{ github.event.pull_request.head.sha || github.sha }}'
+          prerelease: ${{ env.IS_DEV }}
+          prerelease-identifier: 'alpha'
+
+      - name: Report build info summary to PR
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          |VERSION|
+          |:--:|
+          |\`$VERSION\`
+          EOF
+        env:
+          VERSION: ${{ steps.version-info.outputs.resolved_version }}
