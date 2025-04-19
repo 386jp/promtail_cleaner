@@ -6,6 +6,7 @@ use tokio::fs;
 use tokio::fs::metadata;
 use tokio::fs::File;
 use futures::StreamExt;
+use tokio::signal::unix::{signal, SignalKind};
 
 use crate::promtail::config::read_promtail_config;
 use crate::promtail::position::read_positions_file;
@@ -98,8 +99,11 @@ async fn main() -> Result<()> {
                     std::process::exit(1);
                 }
             }
-            _ = tokio::signal::ctrl_c() => {
-                log::info!("Received SIGINT or SIGTERM. Stopping application...");
+            _ = async {
+                let mut sigterm = signal(SignalKind::terminate()).expect("Failed to set up SIGTERM handler");
+                sigterm.recv().await;
+            } => {
+                log::info!("Received SIGTERM. Stopping application...");
                 break;
             }
         }

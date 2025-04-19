@@ -1,0 +1,3 @@
+positions:
+  # filename: ./mock/positions.yml
+  filename: /run/promtail/positions.yaml

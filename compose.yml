@@ -4,3 +4,10 @@ services:
       context: .
       dockerfile: ./Dockerfile
       target: prod
+    environment:
+      - RUST_LOG=info
+      - INSPECTION_INTERVAL_SEC=300
+      - PROMTAIL_CONFIG_PATH=/etc/promtail/promtail.yaml
+    volumes:
+      - ./mock/config.yml:/etc/promtail/promtail.yaml
+      - ./mock/positions.yml:/run/promtail/positions.yaml
