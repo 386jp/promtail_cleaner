@@ -76,15 +76,24 @@ async fn main() -> Result<()> {
     env_logger::init();
     log::info!("Starting application...");
 
-    let mut interval = tokio::time::interval(Duration::from_secs(10));
+    let inspection_interval = std::env::var("INSPECTION_INTERVAL_SEC")
+        .unwrap_or_else(|_| "".to_string())
+        .parse::<u64>()
+        .unwrap_or(300);
+
+    log::info!("Inspection interval: {} seconds", inspection_interval);
+
+    let mut interval = tokio::time::interval(Duration::from_secs(inspection_interval));
     let promtail_config = read_promtail_config().await?;
+    let promtail_position_file = promtail_config.positions.filename.clone();
+    log::info!("Promtail position file: {}", promtail_position_file.clone());
 
     log::info!("Application started!");
 
     loop {
         tokio::select! {
             _ = interval.tick() => {
-                if let Err(e) = inspect_position_file(promtail_config.positions.filename.clone()).await {
+                if let Err(e) = inspect_position_file(promtail_position_file.clone()).await {
                     log::error!("Error occurred while performing task: {:?}", e);
                     std::process::exit(1);
                 }
